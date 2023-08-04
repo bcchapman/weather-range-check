@@ -3,7 +3,6 @@ package weatherrange
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/sethvargo/go-envconfig"
 )
 
-const SLEEP_INTERVAL = 15 * time.Second
+const SLEEP_INTERVAL = 60 * time.Second
 const THROTTLE_SLEEP_INTERVAL = 30 * time.Second
 
 const FLOOR_TEMPERATURE = 65
@@ -54,7 +53,7 @@ func StartListening(onChangeHandler onChange) {
 			// check if currentReading is in bound
 			currentReadingInRange := checkTemperatureInRange(currentReading, lastReadingInRange, onChangeHandler)
 
-			fmt.Printf("Previous reading for %s was %.2f, current reading is %.2f\n",
+			log.Printf("Previous reading for %s was %.2f, current reading is %.2f\n",
 				device.Info.Name,
 				lastReading,
 				currentReading)
@@ -78,7 +77,7 @@ func fetchDevice(key ambient.Key, fetcher deviceFetcher) (device *ambient.Device
 			// time.Sleep(THROTTLE_SLEEP_INTERVAL) Move to implementer
 			return nil, errors.New("REQUEST WAS THROTTLED")
 		} else if len(devices.DeviceRecord) != 1 { // Check for mismatched device count
-			fmt.Printf("WARNING: Did not receieve expected count of %d device\n", len(devices.DeviceRecord))
+			log.Printf("WARNING: Did not receieve expected count of %d device\n", len(devices.DeviceRecord))
 			return nil, errors.New("INVALID DEVICE COUNT")
 		} else {
 			// grab device record
@@ -90,6 +89,7 @@ func fetchDevice(key ambient.Key, fetcher deviceFetcher) (device *ambient.Device
 func checkTemperatureInRange(curr float64, lastInRange bool, onChangeHandler onChange) bool {
 	currentReadingInRange := curr >= FLOOR_TEMPERATURE && curr <= CEILING_TEMPERATURE
 	if currentReadingInRange != lastInRange {
+		log.Printf("Current reading state changed from %v to %v", lastInRange, currentReadingInRange)
 		// something changed, send state change
 		onChangeHandler(currentReadingInRange)
 	}
