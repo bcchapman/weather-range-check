@@ -66,7 +66,7 @@ func StartListening(onChangeHandler onChange) {
 			lastReading = currentReading
 			lastReadingInRange = currentReadingInRange
 		}
-		time.Sleep(time.Duration(cfg.SleepInterval))
+		time.Sleep(time.Duration(cfg.SleepInterval) * time.Second)
 	}
 }
 
@@ -90,8 +90,8 @@ func fetchDevice(key ambient.Key, fetcher deviceFetcher) (device *ambient.Device
 }
 
 func checkTemperatureInRange(
-	curr float64, lastInRange bool, floorTemperature float64,
-	ceilingTemperature float64,
+	curr float64, lastInRange bool,
+	floorTemperature float64, ceilingTemperature float64,
 	onChangeHandler onChange) bool {
 
 	currentReadingInRange := curr >= floorTemperature && curr <= ceilingTemperature

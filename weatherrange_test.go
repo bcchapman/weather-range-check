@@ -20,53 +20,68 @@ func (re *MockCallback) Callback(isTemperatureInRange bool) {
 
 func TestCheckTemperatureInRange(t *testing.T) {
 	subtests := []struct {
-		name             string
-		temperature      float64
-		expectedResult   bool
-		lastInRange      bool
-		expectedCallback bool
+		name               string
+		temperature        float64
+		floorTemperature   float64
+		ceilingTemperature float64
+		expectedResult     bool
+		lastInRange        bool
+		expectedCallback   bool
 	}{
 		{
-			name:             "Negative temperature",
-			temperature:      -12.0,
-			expectedResult:   false,
-			lastInRange:      false,
-			expectedCallback: false,
+			name:               "Negative temperature",
+			temperature:        -12.0,
+			floorTemperature:   65.0,
+			ceilingTemperature: 73.0,
+			expectedResult:     false,
+			lastInRange:        false,
+			expectedCallback:   false,
 		},
 		{
-			name:             "Less than minimum",
-			temperature:      64.0,
-			expectedResult:   false,
-			lastInRange:      false,
-			expectedCallback: false,
+			name:               "Less than minimum",
+			temperature:        64.0,
+			floorTemperature:   65.0,
+			ceilingTemperature: 73.0,
+			expectedResult:     false,
+			lastInRange:        false,
+			expectedCallback:   false,
 		},
 		{
-			name:             "Greater than max going out of range",
-			temperature:      74.0,
-			expectedResult:   false,
-			lastInRange:      true,
-			expectedCallback: true,
+			name:               "Greater than max going out of range",
+			temperature:        74.0,
+			floorTemperature:   65.0,
+			ceilingTemperature: 73.0,
+			expectedResult:     false,
+			lastInRange:        true,
+			expectedCallback:   true,
 		},
 		{
-			name:             "At minimum going into range",
-			temperature:      65.0,
-			expectedResult:   true,
-			lastInRange:      false,
-			expectedCallback: true,
+			name:               "At minimum going into range",
+			temperature:        65.0,
+			floorTemperature:   65.0,
+			ceilingTemperature: 73.0,
+			expectedResult:     true,
+			lastInRange:        false,
+			expectedCallback:   true,
 		},
 		{
-			name:             "At maximum going into range",
-			temperature:      73.0,
-			expectedResult:   true,
-			lastInRange:      false,
-			expectedCallback: true,
+			name:               "At maximum going into range",
+			temperature:        73.0,
+			floorTemperature:   65.0,
+			ceilingTemperature: 73.0,
+			expectedResult:     true,
+			lastInRange:        false,
+			expectedCallback:   true,
 		},
 	}
 
 	for _, subtest := range subtests {
 		t.Run(subtest.name, func(t *testing.T) {
 			callback := MockCallback{}
-			res := checkTemperatureInRange(subtest.temperature, subtest.lastInRange, callback.Callback)
+			res := checkTemperatureInRange(
+				subtest.temperature, subtest.lastInRange,
+				subtest.floorTemperature, subtest.ceilingTemperature,
+				callback.Callback)
 			if res != subtest.expectedResult {
 				t.Errorf("temperature = %.2f: want %t but got %t", subtest.temperature, subtest.expectedResult, res)
 			}
