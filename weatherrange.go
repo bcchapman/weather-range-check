@@ -10,12 +10,6 @@ import (
 	"github.com/sethvargo/go-envconfig"
 )
 
-const SLEEP_INTERVAL = 60 * time.Second
-const THROTTLE_SLEEP_INTERVAL = 30 * time.Second
-
-const FLOOR_TEMPERATURE = 65
-const CEILING_TEMPERATURE = 73
-
 var lastReading float64 = -1.0
 var lastReadingInRange bool = false
 
@@ -25,8 +19,13 @@ type (
 )
 
 type MyConfig struct {
-	AmbientApplicationKey string `env:"AMBIENT_APPLICATION_KEY"`
-	AmbientAPIKey         string `env:"AMBIENT_API_KEY"`
+	AmbientApplicationKey string `env:"WRC_AMBIENT_APPLICATION_KEY"`
+	AmbientAPIKey         string `env:"WRC_AMBIENT_API_KEY"`
+
+	FloorCeiling       float64 `env:"WRC_FLOOR_TEMPERATURE,default=68.0"`
+	CeilingTemperature float64 `env:"WRC_CEILING_TEMPERATURE,default=72.0"`
+
+	SleepInterval int `env:"WRC_SLEEP_INTERVAL,default=60"`
 }
 
 func StartListening(onChangeHandler onChange) {
@@ -40,6 +39,8 @@ func StartListening(onChangeHandler onChange) {
 
 	key := ambient.NewKey(cfg.AmbientApplicationKey, cfg.AmbientAPIKey)
 
+	log.Printf("Setting floor temperature to %f and ceiling to %f", cfg.FloorCeiling, cfg.CeilingTemperature)
+
 	for {
 		// fetch ambient device
 		device, err := fetchDevice(key, ambient.Device)
@@ -51,7 +52,10 @@ func StartListening(onChangeHandler onChange) {
 			currentReading := device.LastData.Feelslike
 
 			// check if currentReading is in bound
-			currentReadingInRange := checkTemperatureInRange(currentReading, lastReadingInRange, onChangeHandler)
+			currentReadingInRange := checkTemperatureInRange(
+				currentReading, lastReadingInRange,
+				cfg.FloorCeiling, cfg.CeilingTemperature,
+				onChangeHandler)
 
 			log.Printf("Previous reading for %s was %.2f, current reading is %.2f\n",
 				device.Info.Name,
@@ -62,7 +66,7 @@ func StartListening(onChangeHandler onChange) {
 			lastReading = currentReading
 			lastReadingInRange = currentReadingInRange
 		}
-		time.Sleep(time.Duration(SLEEP_INTERVAL))
+		time.Sleep(time.Duration(cfg.SleepInterval))
 	}
 }
 
@@ -74,7 +78,6 @@ func fetchDevice(key ambient.Key, fetcher deviceFetcher) (device *ambient.Device
 	} else {
 		// check for throttling
 		if devices.HTTPResponseCode == 429 { // TODO replace with reference to 429
-			// time.Sleep(THROTTLE_SLEEP_INTERVAL) Move to implementer
 			return nil, errors.New("REQUEST WAS THROTTLED")
 		} else if len(devices.DeviceRecord) != 1 { // Check for mismatched device count
 			log.Printf("WARNING: Did not receieve expected count of %d device\n", len(devices.DeviceRecord))
@@ -86,8 +89,12 @@ func fetchDevice(key ambient.Key, fetcher deviceFetcher) (device *ambient.Device
 	}
 }
 
-func checkTemperatureInRange(curr float64, lastInRange bool, onChangeHandler onChange) bool {
-	currentReadingInRange := curr >= FLOOR_TEMPERATURE && curr <= CEILING_TEMPERATURE
+func checkTemperatureInRange(
+	curr float64, lastInRange bool, floorTemperature float64,
+	ceilingTemperature float64,
+	onChangeHandler onChange) bool {
+
+	currentReadingInRange := curr >= floorTemperature && curr <= ceilingTemperature
 	if currentReadingInRange != lastInRange {
 		log.Printf("Current reading state changed from %v to %v", lastInRange, currentReadingInRange)
 		// something changed, send state change
